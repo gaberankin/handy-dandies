@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+"""
+lint pending code changes in a git repository
+Set the path variables below
+"""
+import os, subprocess, string, json, argparse, fnmatch, re
+try:
+	colors = {
+		'end': subprocess.check_output("tput sgr0".split()),
+		'gray': subprocess.check_output("tput setaf 7".split()),
+		'blue': subprocess.check_output("tput setaf 4".split()),
+		'green': subprocess.check_output("tput setaf 2".split()),
+		'orange': subprocess.check_output("tput setaf 3".split()),
+		'red': subprocess.check_output("tput setaf 1".split()),
+		'underline': subprocess.check_output("tput smul".split()),
+		'bold': subprocess.check_output("tput bold".split())
+	}
+except Exception as e:
+	colors = {
+		'end': '',
+		'gray': '',
+		'blue': '',
+		'green': '',
+		'orange': '',
+		'red': '',
+		'underline': '',
+		'bold': ''
+	}
+
+PHP_PATH = '/usr/bin/php'
+JSHINT_PATH = '/opt/local/bin/jshint'
+
+current_directory = os.getcwd()
+t = subprocess.Popen(['git','rev-parse','--show-toplevel'], stdout = subprocess.PIPE, stderr = subprocess.PIPE, cwd = current_directory)
+has_errors = False
+if t.stderr:
+	for line in t.stderr.readlines():
+		has_errors = True
+		print line,
+	if has_errors:
+		exit(1)
+if has_errors == False and t.stdout:
+	for line in t.stdout.readlines():
+		if line != '':
+			cwd = line.strip()
+			break
+	if cwd != '':
+		current_directory = cwd
+
+print "Directory of repository is {color_start}{directory}{color_end}".format(color_start = colors['blue'], directory = current_directory, color_end = colors['end'])
+
+t = subprocess.Popen(["git","status"], stdout = subprocess.PIPE, stderr = subprocess.PIPE, cwd = current_directory)
+
+loopState = '';
+for line in t.stdout.readlines():
+	if line == '':
+		break;
+
+	try:
+		# php?
+		m = re.search("(\S+)\.php", line)
+		if m and PHP_PATH:
+			filename = m.group(0)
+			print "checking {filename}".format(filename = filename)
+			lint_result = subprocess.Popen([PHP_PATH,"-l",filename], stdout = subprocess.PIPE, stderr = subprocess.PIPE, cwd = current_directory)
+			num_errs = 0
+			if lint_result.stderr:
+				for lint in lint_result.stderr.readlines():
+					lint = lint.strip()
+					print "{color_start}{line}{color_end}".format(color_start = colors['red'], line = lint, color_end = colors['end'])
+					num_errs = num_errs + 1
+			if num_errs == 0 and lint_result.stdout:
+				for lint in lint_result.stdout.readlines():
+					lint = lint.strip()
+					print "{color_start}{line}{color_end}".format(color_start = colors['green'], line = lint, color_end = colors['end'])
+			continue
+
+		# Check if this is 'minified' javascript.  if it is, don't try to lint
+		m = re.search("(\S+)\.min\.js", line)
+		if m:
+			continue
+
+		# Check if this is javascript
+		m = re.search("(\S+)\.js", line)
+		if m and JSHINT_PATH:
+			filename = m.group(0)
+			print "checking {filename}".format(filename = filename)
+			lint_result = subprocess.Popen([JSHINT_PATH,filename], stdout = subprocess.PIPE, stderr = subprocess.PIPE, cwd = current_directory)
+			num_errs = 0
+			if lint_result.stderr:
+				for lint in lint_result.stderr.readlines():
+					lint = lint.strip()
+					print "{color_start}{line}{color_end}".format(color_start = colors['red'], line = lint, color_end = colors['end'])
+					num_errs = num_errs + 1
+			if num_errs == 0 and lint_result.stdout:
+				for lint in lint_result.stdout.readlines():
+					lint = lint.strip()
+					print "{color_start}{line}{color_end}".format(color_start = colors['green'], line = lint, color_end = colors['end'])
+	except Exception, e:
+		pass
