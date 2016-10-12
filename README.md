@@ -14,3 +14,5 @@ Once you've done that, copy the script somewhere where your system can easily fi
 ```bash
 sudo chmod +x git-lint
 ```
+
+I guess nowadays I should point out that this was written when python 2.7 was the version of python everyone used.  I think it's still the case now, but a lot of people are moving up to v 3.x (at least, that's what I've observed in the student code reviews I'm involved in)
